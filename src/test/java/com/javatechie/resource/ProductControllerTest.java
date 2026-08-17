@@ -37,11 +37,19 @@ class ProductControllerTest {
     @Test
     void getProducts_delegatesToServiceAndReturnsResult() {
         Product product = new Product(1, "Laptop", "Electronics", 999.99f, 10);
+        product.setTagGroups(List.of(
+                List.of("wireless", "bluetooth"),
+                List.of("clearance")
+        ));
         when(service.getProducts()).thenReturn(List.of(product));
 
         List<Product> result = controller.getProducts();
 
         assertThat(result).containsExactly(product);
+        assertThat(result.get(0).getTagGroups()).containsExactly(
+                List.of("wireless", "bluetooth"),
+                List.of("clearance")
+        );
         verify(service).getProducts();
     }
 

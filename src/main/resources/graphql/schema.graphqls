@@ -4,15 +4,23 @@ type Product{
     category:String
     price:Float
     stock:Int
+    tagGroups: [[String]]
 }
 
 
 type Query{
+    # We only need to declare the outer list here, e.g. [Product]. Any nested list field
+    # inside the returned type (like Product.tagGroups, itself a list of lists) does not
+    # need any special wiring in the query section - Spring for GraphQL resolves it
+    # straight off the Java model (List<List<String>>) automatically.
     getProducts:[Product]
     getProductsByCategory(category:String):[Product]
 }
 
 type  Mutation{
+    # Same concept applies to mutations: we just declare the return type as Product (or
+    # [Product]) below, and any nested list field on that type - such as Product.tagGroups -
+    # is handled by Spring the same way, with no extra mutation-specific wiring needed.
     updateStock(id:ID,stock:Int):Product
     receiveNewShipment(id:ID,quantity:Int):Product
 }

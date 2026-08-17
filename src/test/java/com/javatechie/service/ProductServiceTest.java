@@ -39,6 +39,10 @@ class ProductServiceTest {
     @BeforeEach
     void setUp() {
         product = new Product(1, "Laptop", "Electronics", 999.99f, 10);
+        product.setTagGroups(List.of(
+                List.of("wireless", "bluetooth"),
+                List.of("clearance")
+        ));
     }
 
     @Test
@@ -50,6 +54,18 @@ class ProductServiceTest {
 
         assertThat(result).hasSize(2).containsExactlyElementsOf(products);
         verify(repository, times(1)).findAll();
+    }
+
+    @Test
+    void getProducts_preservesNestedTagGroupsList() {
+        when(repository.findAll()).thenReturn(List.of(product));
+
+        List<Product> result = service.getProducts();
+
+        assertThat(result.get(0).getTagGroups()).containsExactly(
+                List.of("wireless", "bluetooth"),
+                List.of("clearance")
+        );
     }
 
     @Test
@@ -88,6 +104,10 @@ class ProductServiceTest {
         Product result = service.updateStock(1, 50);
 
         assertThat(result.getStock()).isEqualTo(50);
+        assertThat(result.getTagGroups()).containsExactly(
+                List.of("wireless", "bluetooth"),
+                List.of("clearance")
+        );
         verify(repository).save(product);
     }
 
