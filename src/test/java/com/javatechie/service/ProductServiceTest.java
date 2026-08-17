@@ -1,6 +1,8 @@
 package com.javatechie.service;
 
+import com.javatechie.entity.InsideSpec;
 import com.javatechie.entity.Product;
+import com.javatechie.entity.Spec;
 import com.javatechie.repository.ProductRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,6 +45,15 @@ class ProductServiceTest {
                 List.of("wireless", "bluetooth"),
                 List.of("clearance")
         ));
+        product.setSpec(List.of(
+                new Spec(List.of(
+                        new InsideSpec("Resolution: 4K UHD"),
+                        new InsideSpec("Size: 15.6 inch")
+                )),
+                new Spec(List.of(
+                        new InsideSpec("Capacity: 70Wh")
+                ))
+        ));
     }
 
     @Test
@@ -66,6 +77,22 @@ class ProductServiceTest {
                 List.of("wireless", "bluetooth"),
                 List.of("clearance")
         );
+    }
+
+    @Test
+    void getProducts_preservesNestedSpecList() {
+        when(repository.findAll()).thenReturn(List.of(product));
+
+        List<Product> result = service.getProducts();
+
+        List<Spec> spec = result.get(0).getSpec();
+        assertThat(spec).hasSize(2);
+        assertThat(spec.get(0).getInsideSpec())
+                .extracting(InsideSpec::getField)
+                .containsExactly("Resolution: 4K UHD", "Size: 15.6 inch");
+        assertThat(spec.get(1).getInsideSpec())
+                .extracting(InsideSpec::getField)
+                .containsExactly("Capacity: 70Wh");
     }
 
     @Test
@@ -108,6 +135,7 @@ class ProductServiceTest {
                 List.of("wireless", "bluetooth"),
                 List.of("clearance")
         );
+        assertThat(result.getSpec()).hasSize(2);
         verify(repository).save(product);
     }
 

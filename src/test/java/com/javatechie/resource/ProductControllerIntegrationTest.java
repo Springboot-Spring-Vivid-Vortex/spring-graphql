@@ -1,6 +1,8 @@
 package com.javatechie.resource;
 
+import com.javatechie.entity.InsideSpec;
 import com.javatechie.entity.Product;
+import com.javatechie.entity.Spec;
 import com.javatechie.repository.ProductRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,10 +43,25 @@ class ProductControllerIntegrationTest {
 
         Product newLaptop = new Product("Laptop", "Electronics", 999.99f, 10);
         newLaptop.setTagGroups(List.of(List.of("premium", "silver")));
+        newLaptop.setSpec(List.of(
+                new Spec(List.of(
+                        new InsideSpec("Resolution: 4K UHD"),
+                        new InsideSpec("Size: 15.6 inch")
+                )),
+                new Spec(List.of(
+                        new InsideSpec("Capacity: 70Wh")
+                ))
+        ));
         laptop = repository.save(newLaptop);
 
         Product newPhone = new Product("Phone", "Electronics", 499.99f, 20);
         newPhone.setTagGroups(List.of(List.of("5g"), List.of("black", "128gb")));
+        newPhone.setSpec(List.of(
+                new Spec(List.of(
+                        new InsideSpec("Network: 5G"),
+                        new InsideSpec("SIM: Dual eSIM")
+                ))
+        ));
         phone = repository.save(newPhone);
     }
 
@@ -150,6 +167,52 @@ class ProductControllerIntegrationTest {
     }
 
     @Test
+    void getProductsByCategory_returnsNestedSpecList() {
+        // A dedicated category with a single product so the result order is unambiguous.
+        Product smartwatch = new Product("Smartwatch", "Wearables", 249.99f, 12);
+        smartwatch.setSpec(List.of(
+                new Spec(List.of(
+                        new InsideSpec("Display: AMOLED"),
+                        new InsideSpec("Battery: 18 hours")
+                )),
+                new Spec(List.of(
+                        new InsideSpec("Water resistance: 5 ATM")
+                ))
+        ));
+        repository.save(smartwatch);
+
+        String query = """
+                query {
+                    getProductsByCategory(category: "Wearables") {
+                        name
+                        spec {
+                            insideSpec {
+                                field
+                            }
+                        }
+                    }
+                }
+                """;
+
+        // Spec/InsideSpec are plain POJOs shaped exactly like the GraphQL response, so they
+        // can be decoded directly - the same three-level object graph that Product.spec
+        // exposes in Java is what comes back over HTTP, unwrapped by Spring for GraphQL.
+        List<Spec> spec = graphQlTester.document(query)
+                .execute()
+                .path("getProductsByCategory[0].spec")
+                .entityList(Spec.class)
+                .get();
+
+        assertThat(spec).hasSize(2);
+        assertThat(spec.get(0).getInsideSpec())
+                .extracting(InsideSpec::getField)
+                .containsExactly("Display: AMOLED", "Battery: 18 hours");
+        assertThat(spec.get(1).getInsideSpec())
+                .extracting(InsideSpec::getField)
+                .containsExactly("Water resistance: 5 ATM");
+    }
+
+    @Test
     void getProductsByCategory_returnsEmptyListForUnknownCategory() {
         String query = """
                 query {
@@ -185,8 +248,9 @@ class ProductControllerIntegrationTest {
 
         Product updated = repository.findById(laptop.getId()).orElseThrow();
         assertThat(updated.getStock()).isEqualTo(100);
-        // A mutation touching only `stock` must not disturb the unrelated nested tagGroups field.
+        // A mutation touching only `stock` must not disturb the unrelated nested fields.
         assertThat(updated.getTagGroups()).containsExactly(List.of("premium", "silver"));
+        assertThat(updated.getSpec()).hasSize(2);
     }
 
     @Test
@@ -224,8 +288,9 @@ class ProductControllerIntegrationTest {
 
         Product updated = repository.findById(phone.getId()).orElseThrow();
         assertThat(updated.getStock()).isEqualTo(35);
-        // A mutation touching only `stock` must not disturb the unrelated nested tagGroups field.
+        // A mutation touching only `stock` must not disturb the unrelated nested fields.
         assertThat(updated.getTagGroups()).containsExactly(List.of("5g"), List.of("black", "128gb"));
+        assertThat(updated.getSpec()).hasSize(1);
     }
 
     @Test

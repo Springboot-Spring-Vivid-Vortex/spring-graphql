@@ -1,26 +1,68 @@
-type Product{
-    id: ID,
-    name:String
-    category:String
-    price:Float
-    stock:Int
-    tagGroups: [[String]]
+type Product {
+  id: ID
+  name: String
+  category: String
+  price: Float
+  stock: Int
+  tagGroups: [[String]]
+  spec: [Spec]
 }
 
-
-type Query{
-    # We only need to declare the outer list here, e.g. [Product]. Any nested list field
-    # inside the returned type (like Product.tagGroups, itself a list of lists) does not
-    # need any special wiring in the query section - Spring for GraphQL resolves it
-    # straight off the Java model (List<List<String>>) automatically.
-    getProducts:[Product]
-    getProductsByCategory(category:String):[Product]
+# Nesting isn't limited to lists of scalars like tagGroups above - it works the same way
+# for lists of object types, three levels deep:
+#   Product.spec        -> [Spec]        one entry per specification category (e.g. "Display", "Battery")
+#   Spec.insideSpec      -> [InsideSpec]  the detail lines within that category
+#   InsideSpec.field     -> String        one detail line, e.g. "Resolution: 4K UHD"
+# We only ever declare each type's own immediate fields here; Spring for GraphQL walks the
+# Java object graph (Product -> List<Spec> -> List<InsideSpec> -> String) and resolves every
+# level automatically via the matching getters, with no manual resolver required at any level.
+type Spec {
+  insideSpec: [InsideSpec]
 }
 
-type  Mutation{
-    # Same concept applies to mutations: we just declare the return type as Product (or
-    # [Product]) below, and any nested list field on that type - such as Product.tagGroups -
-    # is handled by Spring the same way, with no extra mutation-specific wiring needed.
-    updateStock(id:ID,stock:Int):Product
-    receiveNewShipment(id:ID,quantity:Int):Product
+type InsideSpec {
+  field: String
+}
+
+# [[String]] is a jagged array (also called a ragged array) where:
+#
+# The outer array contains multiple inner arrays
+# Each inner array can have a different size/length
+# All elements are Strings
+# Example:
+#
+#
+# {
+#   "tagGroups": [
+#     ["electronics", "gadgets", "phones"],    // 3 items
+#     ["new"],                                   // 1 item
+#     ["discount", "sale", "limited", "offer"], // 4 items
+#     ["featured"]                               // 1 item
+#   ]
+# }
+# Each inner group can have as many tags as needed — no requirement for uniform length.
+#
+# In contrast, a fixed 2D array would look like:
+#
+#
+# [[String!]!]  // Every inner array MUST have at least 1 element
+# But [[String]] gives you flexibility — some groups can have many tags, others can have just one or even none (null).
+#
+# So you've nailed the concept! It's perfect for variable-length groupings of data.
+
+type Query {
+  # We only need to declare the outer list here, e.g. [Product]. Any nested list field
+  # inside the returned type (like Product.tagGroups, itself a list of lists) does not
+  # need any special wiring in the query section - Spring for GraphQL resolves it
+  # straight off the Java model (List<List<String>>) automatically.
+  getProducts: [Product]
+  getProductsByCategory(category: String): [Product]
+}
+
+type Mutation {
+  # Same concept applies to mutations: we just declare the return type as Product (or
+  # [Product]) below, and any nested list field on that type - such as Product.tagGroups -
+  # is handled by Spring the same way, with no extra mutation-specific wiring needed.
+  updateStock(id: ID, stock: Int): Product
+  receiveNewShipment(id: ID, quantity: Int): Product
 }

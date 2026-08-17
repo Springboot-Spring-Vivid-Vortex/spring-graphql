@@ -34,12 +34,21 @@ public class Product {
     @Column(columnDefinition = "TEXT")
     private List<List<String>> tagGroups = new ArrayList<>();
 
+    // Product specifications, grouped by category: each Spec is one category (e.g. "Display",
+    // "Battery"), and each category holds its own list of InsideSpec detail lines (e.g.
+    // "Resolution: 4K UHD"). Three levels deep - Product -> [Spec] -> [InsideSpec] -> field -
+    // stored as JSON via SpecListConverter for the same reason as tagGroups above.
+    @Convert(converter = SpecListConverter.class)
+    @Column(columnDefinition = "TEXT")
+    private List<Spec> spec = new ArrayList<>();
+
     public Product(String name, String category, Float price, Integer stock) {
         this.name = name;
         this.category = category;
         this.price = price;
         this.stock = stock;
         this.tagGroups = new ArrayList<>();
+        this.spec = new ArrayList<>();
     }
 
     public Product(Integer id, String name, String category, Float price, Integer stock) {
@@ -49,5 +58,6 @@ public class Product {
         this.price = price;
         this.stock = stock;
         this.tagGroups = new ArrayList<>();
+        this.spec = new ArrayList<>();
     }
 }
