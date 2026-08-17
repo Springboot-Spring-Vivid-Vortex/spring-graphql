@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.graphql.tester.AutoConfigureHttpGraphQlTester;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.graphql.test.tester.HttpGraphQlTester;
 
 import java.util.List;
@@ -37,8 +38,14 @@ class ProductControllerIntegrationTest {
     @BeforeEach
     void setUp() {
         repository.deleteAll();
-        laptop = repository.save(new Product("Laptop", "Electronics", 999.99f, 10));
-        phone = repository.save(new Product("Phone", "Electronics", 499.99f, 20));
+
+        Product newLaptop = new Product("Laptop", "Electronics", 999.99f, 10);
+        newLaptop.setTagGroups(List.of(List.of("premium", "silver")));
+        laptop = repository.save(newLaptop);
+
+        Product newPhone = new Product("Phone", "Electronics", 499.99f, 20);
+        newPhone.setTagGroups(List.of(List.of("5g"), List.of("black", "128gb")));
+        phone = repository.save(newPhone);
     }
 
     @AfterEach
@@ -110,6 +117,39 @@ class ProductControllerIntegrationTest {
     }
 
     @Test
+    void getProductsByCategory_returnsNestedTagGroupsList() {
+        // A dedicated category with a single product so the result order is unambiguous.
+        Product headphones = new Product("Headphones", "Audio", 199.99f, 8);
+        headphones.setTagGroups(List.of(
+                List.of("wireless", "noise-cancelling"),
+                List.of("clearance")
+        ));
+        repository.save(headphones);
+
+        String query = """
+                query {
+                    getProductsByCategory(category: "Audio") {
+                        name
+                        tagGroups
+                    }
+                }
+                """;
+
+        List<List<List<String>>> tagGroupsPerProduct = graphQlTester.document(query)
+                .execute()
+                .path("getProductsByCategory[*].tagGroups")
+                .entityList(new ParameterizedTypeReference<List<List<String>>>() {
+                })
+                .get();
+
+        assertThat(tagGroupsPerProduct).hasSize(1);
+        assertThat(tagGroupsPerProduct.get(0)).containsExactly(
+                List.of("wireless", "noise-cancelling"),
+                List.of("clearance")
+        );
+    }
+
+    @Test
     void getProductsByCategory_returnsEmptyListForUnknownCategory() {
         String query = """
                 query {
@@ -145,6 +185,8 @@ class ProductControllerIntegrationTest {
 
         Product updated = repository.findById(laptop.getId()).orElseThrow();
         assertThat(updated.getStock()).isEqualTo(100);
+        // A mutation touching only `stock` must not disturb the unrelated nested tagGroups field.
+        assertThat(updated.getTagGroups()).containsExactly(List.of("premium", "silver"));
     }
 
     @Test
@@ -182,6 +224,8 @@ class ProductControllerIntegrationTest {
 
         Product updated = repository.findById(phone.getId()).orElseThrow();
         assertThat(updated.getStock()).isEqualTo(35);
+        // A mutation touching only `stock` must not disturb the unrelated nested tagGroups field.
+        assertThat(updated.getTagGroups()).containsExactly(List.of("5g"), List.of("black", "128gb"));
     }
 
     @Test
