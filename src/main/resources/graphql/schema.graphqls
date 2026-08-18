@@ -1,5 +1,5 @@
 type Product {
-  id: ID
+  id: ID! # The "!" marks this field as non-nullable
   name: String
   category: String
   price: Float
@@ -24,31 +24,9 @@ type InsideSpec {
   field: String
 }
 
-# [[String]] is a jagged array (also called a ragged array) where:
-#
-# The outer array contains multiple inner arrays
-# Each inner array can have a different size/length
-# All elements are Strings
-# Example:
-#
-#
-# {
-#   "tagGroups": [
-#     ["electronics", "gadgets", "phones"],    // 3 items
-#     ["new"],                                   // 1 item
-#     ["discount", "sale", "limited", "offer"], // 4 items
-#     ["featured"]                               // 1 item
-#   ]
-# }
-# Each inner group can have as many tags as needed — no requirement for uniform length.
-#
-# In contrast, a fixed 2D array would look like:
-#
-#
-# [[String!]!]  // Every inner array MUST have at least 1 element
-# But [[String]] gives you flexibility — some groups can have many tags, others can have just one or even none (null).
-#
-# So you've nailed the concept! It's perfect for variable-length groupings of data.
+# [[String]] is a jagged array: the outer list holds any number of inner lists, and each
+# inner list can be a different length (e.g. [["wireless","bluetooth"],["clearance"]]).
+# Compare to [[String!]!], which would force every inner list to be non-null and non-empty.
 
 type Query {
   # We only need to declare the outer list here, e.g. [Product]. Any nested list field
@@ -57,6 +35,9 @@ type Query {
   # straight off the Java model (List<List<String>>) automatically.
   getProducts: [Product]
   getProductsByCategory(category: String): [Product]
+
+  # Single product query with error handling - throws error if product not found
+  getProductById(id: ID!): Product
 }
 
 type Mutation {
